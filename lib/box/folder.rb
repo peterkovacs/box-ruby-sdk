@@ -69,13 +69,13 @@ module Box
     #       could cause major problems if used improperly.
     #
     # @example Find all sub-items with the name 'README'
-    #   folder.search(:name => 'README')
+    #   folder.find(:name => 'README')
     #
     # @example Recusively find a sub-item with the given path.
-    #   folder.search(:path => '/test/file.mp4', :recursive => true)
+    #   folder.find(:path => '/test/file.mp4', :recursive => true)
     #
     # @example Recursively find all files with a given sha1.
-    #   folder.search(:type => 'file', :sha1 => 'abcdefg', :recursive => true)
+    #   folder.find(:type => 'file', :sha1 => 'abcdefg', :recursive => true)
     #
     # TODO: Lookup YARD syntax for options hash.
     def find(criteria)
