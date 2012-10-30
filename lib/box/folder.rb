@@ -27,7 +27,7 @@ module Box
       file = ::File.new(file) unless file.is_a?(::UploadIO) or file.is_a?(::File)
 
       response = @api.upload_file(id, file)
-      Box::File.new(@api, response['file'])
+      Box::File.new(@api, response['entries'].first)
     end
 
     def create_discussion(name)
@@ -45,13 +45,16 @@ module Box
     # Delete this item and all sub-items.
     #
     # @return [Boolean] true
-    def delete
-      response = @api.delete_folder(id)
-      Box::Folder.new(@api, response.parsed_response)
+    def delete(recursive = false)
+      response = @api.delete_folder(id, recursive)
+      true
     end
 
-    def update(params)
-      response = @api.update_folder_info(id, @data)
+    def update(params = Hash.new)
+      params[:name] ||= name
+      params[:parent] = params[:parent].id if params[:parent]
+
+      response = @api.update_folder_info(id, params)
       Box::Folder.new(@api, response.parsed_response)
     end
 

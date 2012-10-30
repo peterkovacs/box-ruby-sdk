@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = [ "lib", "spec" ]
 
-  s.add_dependency("httmultiparty", "~> 0.3.6")
+  s.add_dependency("httmultiparty", "~> 0.3.8")
   s.add_dependency("multi_json")
 
   s.add_development_dependency("launchy") # only used in examples

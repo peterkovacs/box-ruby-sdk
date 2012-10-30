@@ -8,17 +8,21 @@ describe Box::File do
 
   let(:test_root) do
     spec = root.find(:name => 'rspec').first
-    spec.delete if spec
+    spec.delete(true) if spec
 
     root.create_folder('rspec')
   end
 
   let(:hello_file) do
-    File.open('spec/dummy.test', 'w') { |f| f.write("Hello World!") }
+    'spec/dummy.test'.tap do |file|
+      File.open(file, 'w') { |f| f.write("Hello World!") }
+    end
   end
 
   let(:vegetables_file) do
-    File.open('spec/veg.test', 'w') { |f| f.write("banana, orange, avachokado") }
+    'spec/veg.test'.tap do |file|
+      File.open(file, 'w') { |f| f.write("banana, orange, avachokado") }
+    end
   end
 
   let(:dummy) do
@@ -27,28 +31,20 @@ describe Box::File do
 
   describe "#download" do
     it "downloads a file" do
+      sleep 1 # wait
       text = dummy.download
       text.should == "Hello World!"
     end
   end
 
-  describe "#upload_overwrite" do
-    it "overwrites a file" do
-      file = dummy.upload_overwrite(vegetables_file)
+  describe "#upload_version" do
+    it "uploads a new file version" do
+      dummy.name.should == 'dummy.test'
+      file = dummy.upload_version(vegetables_file)
 
-      file.name.should == 'dummy.test'
+      file.name.should == 'veg.test'
       file.parent.should == test_root
-      file.sha1.should_not == dummy.sha1
-    end
-  end
-
-  describe "#upload_copy" do
-    it "uploads a copy" do
-      file = dummy.upload_copy(vegetables_file)
-
-      file.name.should == 'dummy (1).test'
-      file.parent.should == test_root
-      file.sha1.should_not == dummy.sha1
+      file.etag.should_not == dummy.etag
     end
   end
 
@@ -71,8 +67,7 @@ describe Box::File do
 
   describe "#delete" do
     it "deletes the file" do
-      new_file = dummy.delete.should
-      new_file.trashed.should == true
+      dummy.delete.should == true
     end
   end
 
@@ -120,9 +115,9 @@ describe Box::File do
     end
 
     it "lazy-loads file info" do
-      dummy.data[:sha1].should == nil
-      dummy.sha1.should_not == nil
-      dummy.data[:sha1].should_not == nil
+      dummy.data[:etag].should == nil
+      dummy.etag.should_not == nil
+      dummy.data[:etag].should_not == nil
     end
   end
 end

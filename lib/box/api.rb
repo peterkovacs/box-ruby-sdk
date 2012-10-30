@@ -19,8 +19,6 @@ module Box
     # @return [String] The old url of the box api.
     attr_accessor :old_url
 
-    attr_accessor :upload_url
-
     #debug_output
 
     # Create a new API object using the given parameters.
@@ -35,18 +33,15 @@ module Box
     #        is passed instead, its key is used.
     #
     # @param [String] url the url of the Box api.
-    # @param [String] upload_url the url of the upload host for the Box api.
-    # @param [String] version the version of the Box api in use.
     #
-    def initialize(key, url = 'https://www.box.com', upload_url = 'https://upload.box.com')
+    def initialize(key, url = 'https://api.box.com')
       @api_key = key
 
       @default_params = { :api_key => key } # add the api_key
       @default_headers = { 'Authorization' => "BoxAuth api_key=#{ key }" }
 
-      @base_url = "#{ url }/api/2.0" # set the base of the request url
-      @old_url = "#{ url }/api/1.0" # logins still use v1
-      @upload_url = "#{ upload_url }/api/2.0"
+      @base_url = "#{ url }/2.0" # set the base of the request url
+      @old_url = "#{ url }/1.0" # logins still use v1
     end
 
     # Make a normal REST request.
@@ -60,13 +55,21 @@ module Box
     # @return [Hash] A parsed version of the XML response.
     #
     def query(method, *args)
-      params = Hash.new
-      params = params.merge(args.pop) if args.last.is_a?(Hash)
+      temp = args.pop if args.last.is_a?(Hash)
+      temp ||= Hash.new
 
       url = [ @base_url, *args ].join("/")
-      params = MultiJson.encode(params)
 
-      response = self.class.send(method.to_sym, url, :body => params, :headers => @default_headers)
+      query = temp.delete(:query)
+      headers = temp.delete(:headers) || Hash.new
+      body = MultiJson.encode(temp) unless temp.empty?
+
+      params = Hash.new
+      params[:headers] = @default_headers.merge(headers)
+      params[:query] = query if query
+      params[:body] = body if body
+
+      response = self.class.send(method.to_sym, url, params)
       raise response.inspect unless response.success?
 
       response
@@ -80,18 +83,6 @@ module Box
 
       result = self.class.get(url, :query => params)
       result['response']
-    end
-
-    def query_upload(*args)
-      params = Hash.new
-      params = params.merge(args.pop) if args.last.is_a?(Hash)
-
-      url = [ @upload_url, *args ].join("/")
-
-      response = self.class.post(url, :query => params, :headers => @default_headers)
-      raise response.inspect unless response.success?
-
-      response
     end
 
     # Request a ticket for authorization
@@ -146,117 +137,102 @@ module Box
       query_old(:action => :get_account_info)
     end
 
+    # VALID
     def get_file_info(file_id)
       query(:get, :files, file_id)
     end
 
-    def update_file_info(file_id, params = Hash.new)
-      query(:put, :files, file_id, params)
+    # VALID
+    def update_file_info(file_id, info = Hash.new)
+      query(:put, :files, file_id, info)
     end
 
-    def delete_file(file_id)
-      query(:delete, :files, file_id)
+    # VALID
+    def delete_file(file_id, etag)
+      query(:delete, :files, file_id, :headers => { 'If-Match' => etag || "" })
     end
 
+    # VALID
     def upload_file(parent_id, file)
-      query_upload(:files, :data, :file => file, :folder_id => parent_id)
+      query(:post, :files, :content, :query => { :file => file, :folder_id => parent_id })
     end
 
-    def download_file(file_id)
-      query(:get, :files, file_id, :data)
+    # VALID
+    def upload_version(file_id, file, old_etag, new_name = nil)
+      query(:post, :files, file_id, :content, :query => { :file => file, :name => new_name }, :headers => { 'If-Match' => old_etag || "" })
     end
 
-    def upload_file_overwrite(file_id, file)
-      query_upload(:files, :file_id, :data, :file => file)
-    end
-
-    def upload_file_copy(file_id, file, destination_id)
-      query_upload(:post, :files, file_id, :copy, :file => file, :parent_folder => { :id => destination_id })
-    end
-
+    # VALID
     def get_file_versions(file_id)
       query(:get, :files, file_id, :versions)
     end
 
-    def get_file_version_info(file_id, file_version)
-      query(:get, :files, file_id, :version => file_version)
+    # VALID
+    def download_file(file_id)
+      query(:get, :files, file_id, :content)
     end
 
-    def download_file_version(file_id, file_version)
-      query(:get, :files, file_id, :versions, file_version)
+    # VALID
+    def add_comment(file_id, message)
+      query(:post, :files, file_id, :comments, :message => message)
     end
 
-    def delete_file_version(file_id, file_version)
-      query(:delete, :files, file_id, :versions, file_version)
+    # VALID
+    def update_comment(comment_id, message)
+      query(:put, :comments, comment_id, :message => message)
     end
 
-    def add_file_comment(file_id, message)
-      query(:post, :files, file_id, :comments, :comment => message)
-    end
-
-    def get_file_comments(file_id)
-      query(:get, :files, file_id, :comments)
-    end
-
-    def create_folder(parent_id, name)
-      query(:post, :folders, parent_id, :name => name)
-    end
-
-    def get_folder_info(folder_id)
-      query(:get, :folders, folder_id)
-    end
-
-    def update_folder_info(folder_id, params = Hash.new)
-      query(:put, :folders, folder_id, params)
-    end
-
-    def delete_folder(folder_id)
-      query(:delete, :folders, folder_id)
-    end
-
-    def get_comment(comment_id)
-      query(:get, :comments, commend_id)
-    end
-
-    def update_comment(comment_id, params = Hash.new)
-      query(:put, :comments, comment_id, params)
-    end
-
+    # VALID
     def delete_comment(comment_id)
       query(:delete, :comments, comment_id)
     end
 
-    def create_discussion(params = Hash.new)
-      query(:post, :discusssions, params)
+    # VALID
+    def get_comment_info(comment_id)
+      query(:get, :comments, comment_id)
     end
 
-    def get_discussion(discussion_id)
-      query(:get, :discussions, discussion_id)
+    # VALID
+    def share_file(file_id, params)
+      query(:put, :files, file_id, :shared_link => params)
     end
 
-    def update_discussion(discussion_id, params)
-      query(:put, :discussions, discussion_id, params)
+    # VALID
+    def copy_file(file_id, new_parent_id, new_name = nil)
+      query(:post, :files, file_id, :copy, :parent => { :id => new_parent_id }, :name => new_name)
     end
 
-    def delete_discussion(discussion_id)
-      query(:delete, :discussions, discussion_id)
+    # VALID
+    def create_folder(parent_id, name)
+      query(:post, :folders, :parent => { :id => parent_id }, :name => name)
     end
 
-    def get_folder_discussions(folder_id)
-      query(:get, :folder, folder_id, :discussions)
+    # VALID
+    def get_folder_info(folder_id)
+      query(:get, :folders, folder_id)
     end
 
-    def add_discussion_comment(discussion_id, params = Hash.new)
-      query(:post, :discussions, discussion_id, :comments, params)
+    # VALID
+    def update_folder_info(folder_id, params = Hash.new)
+      params[:parent] = { :id => params[:parent] } if params[:parent]
+      query(:put, :folders, folder_id, params)
     end
 
-    def get_discussion_comments(discussion_id)
-      query(:get, :discussions, discussion_id, :comments)
+    # VALID
+    def delete_folder(folder_id, recursive = false)
+      query(:delete, :folders, folder_id, :query => { :recursive => recursive })
     end
 
-    def get_events
-      query(:get, :events)
+    # VALID
+    def copy_folder(folder_id, new_parent_id, new_name = nil)
+      query(:post, :folders, folder_id, :copy, :parent => { :id => new_parent_id }, :name => new_name)
     end
+
+    # VALID
+    def share_folder(folder_id, params = Hash.new)
+      query(:put, :folders, folder_id, :shared_link => params)
+    end
+
 =begin
     # Get the entire tree of a given folder.
     #

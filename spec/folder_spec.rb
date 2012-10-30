@@ -5,7 +5,7 @@ describe Box::Folder do
   before(:all) do
     @root = get_root
     spec = @root.find(:name => 'rspec', :type => 'folder').first
-    spec.delete if spec
+    spec.delete(true) if spec
   end
 
   before(:each) do
@@ -16,36 +16,29 @@ describe Box::Folder do
   end
 
   after(:each) do
-    @test_root.delete
+    @test_root.delete(true)
   end
 
   it "creates a new folder" do
-    @dummy.parent.should be @test_root
+    @dummy.parent.should == @test_root
     @dummy.name.should == 'dummy'
   end
 
   it "renames a folder" do
     @dummy.name.should == 'dummy'
-    @dummy.name = 'bandito'
-    @dummy.save
+    new_dummy = @dummy.update(:name => 'bandito')
 
-    @dummy.name.should == 'bandito'
+    new_dummy.name.should == 'bandito'
   end
 
   it "moves a folder" do
-    @dummy.parent.should_not == @test_temp
-    @dummy.parent = @test_temp
-    @dummy.save
-
-    @dummy.parent.should == @test_temp
+    new_dummy = @dummy.update(:parent => @test_temp)
+    new_dummy.parent.should == @test_temp
   end
 
   it "deletes a folder" do
     to_delete = @dummy.create_folder('todelete')
-    @dummy.folders.should have(1).items
-
-    to_delete.delete
-    @dummy.folders.should have(0).items
+    to_delete.delete.should == true
   end
 
 =begin

@@ -48,27 +48,21 @@ module Box
     # @example
     #   item.name # returns @data['name'] or fetches it if not cached
     def method_missing(sym, *args, &block)
-      if sym =~ /^(\w+)=$/
-        key = $1.to_sym
+      # determine whether to refresh the cache
+      refresh = args ? args.first : false
 
-        @data[key] = args.first
-      else
-        # determine whether to refresh the cache
-        refresh = args ? args.first : false
+      # return the value if it already exists
+      return @data[sym] if @data.key?(sym)
 
-        # return the value if it already exists
-        return @data[sym] if @data.key?(sym)
+      # value didn't exist, so try to update the info
+      self.info(refresh)
 
-        # value didn't exist, so try to update the info
-        self.info(refresh)
+      # try returning the value again
+      return @data[sym] if @data.key?(sym)
 
-        # try returning the value again
-        return @data[sym] if @data.key?(sym)
-
-        # we didn't find a value, so it must be invalid
-        # call the normal method_missing function
-        super
-      end
+      # we didn't find a value, so it must be invalid
+      # call the normal method_missing function
+      super
     end
 
     # Handles some cases in method_missing, but won't always be accurate.
@@ -94,29 +88,30 @@ module Box
       info.each do |key, value|
         key = key.to_sym
 
-        if key == :items
-          value.flatten!(1)
-          value.compact!
+        if key == :item_collection
+          key = :items
+          value = value['entries']
         elsif key == :parent_folder
           key = :parent
-          value = Box::Folder.new(@api, value) if value
         end
 
-        if value.is_a?(Array)
-          value.collect! do |val|
-            item_type = case val['type']
-              when 'file' then Box::File
-              when 'folder' then Box::Folder
-              when 'comment' then Box::Comment
-              when 'discussion' then Box::Discussion
-              when 'version' then Box::Version
-            end if val.is_a?(Hash)
+        multi = value.is_a?(Array)
+        value = [ value ] unless multi
 
-            val = item_type.new(@api, val) if item_type
-            val
-          end
+        value.collect! do |val|
+          item_type = case val.delete('type')
+            when 'file' then Box::File
+            when 'folder' then Box::Folder
+            when 'comment' then Box::Comment
+            when 'discussion' then Box::Discussion
+            when 'version' then Box::Version
+          end if val.is_a?(Hash)
+
+          val = item_type.new(@api, val) if item_type
+          val
         end
 
+        value = value.first unless multi
         ninfo[key] = value
       end
 
