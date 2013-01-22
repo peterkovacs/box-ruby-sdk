@@ -134,7 +134,7 @@ module Box
 
     # VALID
     def upload_version(file_id, file, old_etag, new_name = nil)
-      query(:post, :files, file_id, :content, :query => { :file => file, :name => new_name }, :headers => { 'If-Match' => old_etag || "" })
+      query(:post, :files, file_id, :content, :query => { :name => file }, :headers => { 'If-Match' => old_etag || "" })
     end
 
     # VALID
