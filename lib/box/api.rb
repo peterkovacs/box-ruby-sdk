@@ -66,7 +66,7 @@ module Box
 
       response = self.class.send(method.to_sym, url, params)
       unless response.success?
-        case response
+        case response.response
         when Net::HTTPUnauthorized
           raise Box::Net::NotAuthorized.new( response )
         when Net::HTTPForbidden
