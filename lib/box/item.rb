@@ -11,6 +11,16 @@ module Box
     # @return [Hash] The hash of info for this item.
     attr_accessor :data
 
+    def self.item_type( item_type )
+      case item_type
+      when 'file' then Box::File
+      when 'folder' then Box::Folder
+      when 'comment' then Box::Comment
+      when 'discussion' then Box::Discussion
+      when 'version' then Box::Version
+      end
+    end
+
     # Create a new item representing either a file or folder.
     #
     # @param [Api] api The {Api} instance used to generate requests.
@@ -87,6 +97,23 @@ module Box
     # @return [Hash] The info for the item.
     def get_info; Hash.new; end
 
+    def construct_item( val )
+      item_type = Item.item_type( val.delete('type') ) if val.is_a?( Hash )
+      val = item_type.new(@api, val) if item_type
+      val
+    end
+
+    def update_item_collection(collection)
+      offset = collection['offset']
+      size = [ collection[ 'total_count' ] - collection[ 'offset' ], collection[ 'limit' ] ].min
+
+      @data[:items_count] = collection['total_count']
+      @data[:items] ||= []
+      @data[:items][ offset, size ] = collection[ 'entries' ].map do |val|
+        construct_item(val)
+      end
+    end
+
     # @param [Hash] info A hash to be merged this item's info
     def update_info(info)
       ninfo = Hash.new
@@ -95,8 +122,7 @@ module Box
         key = key.to_sym
 
         if key == :item_collection
-          key = :items
-          value = value['entries']
+          update_item_collection( value ) and next
         elsif key == :parent_folder
           key = :parent
         end
@@ -105,16 +131,7 @@ module Box
         value = [ value ] unless multi
 
         value.collect! do |val|
-          item_type = case val.delete('type')
-            when 'file' then Box::File
-            when 'folder' then Box::Folder
-            when 'comment' then Box::Comment
-            when 'discussion' then Box::Discussion
-            when 'version' then Box::Version
-          end if val.is_a?(Hash)
-
-          val = item_type.new(@api, val) if item_type
-          val
+          construct_item(val)
         end
 
         value = value.first unless multi

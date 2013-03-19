@@ -20,6 +20,16 @@ module Box
       self.items
     end
 
+    # Fetches all items in a folder by paging through the item_collection until everything has been fetched.
+    # 
+    def all_items( limit = 1000 )
+      while !has_all_items? 
+        item_collection( limit, items.size )
+      end
+
+      self.items
+    end
+
     # Create a new folder using this folder as the parent.
     #
     # @param [String] name The name of the new folder.
@@ -182,19 +192,21 @@ module Box
       response.parsed_response
     end
 
+    def has_all_items?
+      items.size == items_count
+    end
+
     # (see #find)
     def find!(criteria, recursive)
-      matches = items.collect do |item| # search over our files and folders
-        match = criteria.all? do |key, value| # make sure all criteria pass
+      matches = all_items.select do |item| # search over our files and folders
+        criteria.all? do |key, value| # make sure all criteria pass
           case key.to_sym
           when :type
-            value === item.item_type rescue false
+            Item.item_type( value ) === item rescue false
           else
             value === item.send(key) rescue false
           end
         end
-
-        item if match # use the item if it is a match
       end
 
       if recursive
@@ -203,7 +215,7 @@ module Box
         end
       end
 
-      matches.compact # return the results without nils
+      matches 
     end
   end
 end

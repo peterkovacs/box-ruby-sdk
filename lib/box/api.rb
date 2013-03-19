@@ -210,7 +210,7 @@ module Box
 
     # VALID
     def get_folder_items(folder_id, params = {} )
-      query(:get, :folders, folder_id, :items, params )
+      query(:get, :folders, folder_id, :items, :query => params )
     end
 
     # VALID
