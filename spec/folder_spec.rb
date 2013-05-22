@@ -23,6 +23,14 @@ describe Box::Folder do
     @dummy.name.should == 'dummy'
   end
 
+  it "finds a folder" do
+    @test_root.find( :name => 'dummy', :type => 'folder', :recursive => false ).should == [@dummy]
+  end
+
+  it "finds a folder case insensitively" do
+    @test_root.find( :name => 'DUMMY', :type => 'folder', :recursive => false ).should == [@dummy]
+  end
+
   it "renames a folder" do
     @dummy.name.should == 'dummy'
     new_dummy = @dummy.update(:name => 'bandito')

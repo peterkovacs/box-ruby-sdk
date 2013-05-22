@@ -36,7 +36,9 @@ module Box
     # @return [Folder] The new folder.
     def create_folder(name)
       response = @api.create_folder(id, name)
-      Box::Folder.new(@api, response.parsed_response)
+      Box::Folder.new(@api, response.parsed_response).tap do |item|
+        self.items << item
+      end
     end
 
     # Upload a new file using this folder as the parent
@@ -47,12 +49,16 @@ module Box
       file = ::File.new(file) unless file.is_a?(::UploadIO) or file.is_a?(::File)
 
       response = @api.upload_file(id, file)
-      Box::File.new(@api, response['entries'].first)
+      Box::File.new(@api, response['entries'].first).tap do |item|
+        self.items << item
+      end
     end
 
     def create_discussion(name)
       response = @api.create_discussion(id, name)
-      Box::Discussion.new(@api, response.parsed_response)
+      Box::Discussion.new(@api, response.parsed_response).tap do |item|
+        self.items << item
+      end
     end
 
     def discussions
@@ -203,6 +209,8 @@ module Box
           case key.to_sym
           when :type
             Item.item_type( value ) === item rescue false
+          when :name
+            value.casecmp( item.send( key ) ) == 0 rescue false
           else
             value === item.send(key) rescue false
           end
